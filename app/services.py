@@ -1,8 +1,9 @@
 #app/services.py
 from fastapi import HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from datetime import date
+from typing import Optional
+from sqlalchemy import select, func
 import models
 import schemas
 
@@ -54,3 +55,42 @@ async def delete_advertisement(
     data = await get_advertisement(session, advertisement_id)
     await session.delete(data)
     await session.commit()
+
+
+async def search_advertisements(
+    session: AsyncSession,
+    title: Optional[str] = None,
+    description: Optional[str] = None,
+    price: Optional[int] = None,
+    author: Optional[str] = None,
+    created_at: Optional[date] = None,
+) -> list[models.Advertisement]:
+    stmt = select(models.Advertisement)
+
+    if title is not None:
+        stmt = stmt.where(
+            models.Advertisement.title.ilike(f"%{title}%")
+        )
+
+    if description is not None:
+        stmt = stmt.where(
+            models.Advertisement.description.ilike(f"%{description}%")
+        )
+
+    if price is not None:
+        stmt = stmt.where(
+            models.Advertisement.price == price
+        )
+
+    if author is not None:
+        stmt = stmt.where(
+            models.Advertisement.author.ilike(f"%{author}%")
+        )
+
+    if created_at is not None:
+        stmt = stmt.where(
+            func.date(models.Advertisement.created_at) == created_at
+        )
+
+    result = await session.execute(stmt)
+    return result.scalars().all()

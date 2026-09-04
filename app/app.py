@@ -1,16 +1,22 @@
 #app/app.py
 from typing import Annotated
+from datetime import date
 
 from fastapi import FastAPI, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 import schemas
-import models
 
 from dependencies import get_db_session
 from lifespan import lifespan
-from services import create_advertisement, get_advertisement, update_advertisement, delete_advertisement
+from services import (
+    create_advertisement,
+    get_advertisement,
+    update_advertisement,
+    delete_advertisement,
+    search_advertisements,
+)
 
 app = FastAPI(
     title="Advertisement API",
@@ -33,6 +39,33 @@ async def post_advert(
 ):
     new_advertisement = await create_advertisement(session, advert_data)
     return schemas.CreateAdvertisementResponse(id=new_advertisement.id)
+
+
+@app.get("/advertisement",
+         response_model=list[schemas.GetAdvertisementResponse],
+         summary="Поиск объявлений",
+         tags=["Поиск объявлений"],
+         )
+async def search_adverts(
+        session: SessionDep,
+        title: str | None = None,
+        description: str | None = None,
+        price: int | None = None,
+        author: str | None = None,
+        created_at: date | None = None,
+):
+    advertisements = await search_advertisements(
+        session=session,
+        title=title,
+        description=description,
+        price=price,
+        author=author,
+        created_at=created_at,
+    )
+    return [
+        schemas.GetAdvertisementResponse(**advertisement.to_dict())
+        for advertisement in advertisements
+    ]
 
 
 @app.get("/advertisement/{advertisement_id}",
